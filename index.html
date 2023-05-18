@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        background-color: #f4f4f4;
+        height: 100vh;
+        margin: 0;
+      }
+
+      #game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      canvas {
+        border: 1px solid #333;
+        margin: 20px;
+      }
+
+      .legend {
+        border: 1px solid #333;
+        padding: 20px;
+        text-align: left;
+        background-color: #fff;
+        color: #333;
+        margin-bottom: 10px;
+      }
+
+      .color-box {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        margin-bottom: 5px;
+        margin-right: 5px;
+      }
+
+      #info-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      @keyframes blink {
+        0% {
+          box-shadow: 0 0 5px 5px rgba(255, 0, 0, 1);
+        }
+
+        50% {
+          box-shadow: 0 0 5px 5px rgba(255, 0, 0, 0);
+        }
+
+        100% {
+          box-shadow: 0 0 5px 5px rgba(255, 0, 0, 1);
+        }
+      }
+
+      .blink {
+        animation: blink 1s linear infinite;
+      }
+    </style>
+    <title>Pebbling Game</title>
+  </head>
+
+  <body>
+    <div id="game-container">
+      <h1>Pebbling Game</h1>
+      <canvas id="gameCanvas" width="600" height="400"></canvas>
+    </div>
+    <div id="info-container">
+      <div class="legend">
+        <h2>Legend</h2>
+        <div>
+          <div class="color-box" style="background-color: #f0f0f0"></div>
+          Empty Node
+        </div>
+        <div>
+          <div class="color-box" style="background-color: #333"></div>
+          Pebble
+        </div>
+      </div>
+      <div class="legend">
+        <h2>Statistics</h2>
+        <div>
+          <span id="pebbles-used">Pebbles Used: 0</span>
+        </div>
+        <div>
+          <span id="max-pebbles">Max Pebbles: 0</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      class Node {
+        constructor(id, x, y) {
+          this.id = id;
+          this.x = x;
+          this.y = y;
+          this.pebble = false;
+          this.children = [];
+        }
+      }
+
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const nodes = [];
+      const edges = [
+        [0, 1],
+        [0, 2],
+        [1, 3],
+        [1, 4],
+        [2, 4],
+        [2, 5],
+        [3, 6],
+        [3, 7],
+        [4, 7],
+        [4, 8],
+        [5, 8],
+        [5, 9],
+      ];
+      const fixedNodePositions = [
+        { x: 300, y: 60 },
+        { x: 210, y: 150 },
+        { x: 390, y: 150 },
+        { x: 120, y: 240 },
+        { x: 300, y: 240 },
+        { x: 480, y: 240 },
+        { x: 210, y: 330 },
+        { x: 120, y: 330 },
+        { x: 390, y: 330 },
+        { x: 480, y: 330 },
+      ];
+
+      function createNodes() {
+        for (let i = 0; i < 10; i++) {
+          const x = fixedNodePositions[i].x;
+          const y = fixedNodePositions[i].y;
+          nodes.push(new Node(i, x, y));
+        }
+      }
+
+      function createEdges() {
+        for (const edge of edges) {
+          const parent = nodes[edge[0]];
+          const child = nodes[edge[1]];
+          parent.children.push(child);
+        }
+      }
+
+      function drawArrow(fromX, fromY, toX, toY) {
+        const headLength = 10;
+        const nodeRadius = 20;
+        const angle = Math.atan2(fromY - toY, fromX - toX);
+        const startX = toX + nodeRadius * Math.cos(angle);
+        const startY = toY + nodeRadius * Math.sin(angle);
+        const endX = fromX - nodeRadius * Math.cos(angle);
+        const endY = fromY - nodeRadius * Math.sin(angle);
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "black";
+        ctx.stroke();
+
+        const arrowHeadAngle = Math.PI / 6;
+        ctx.beginPath();
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(
+          endX - headLength * Math.cos(angle - arrowHeadAngle),
+          endY - headLength * Math.sin(angle - arrowHeadAngle)
+        );
+        ctx.lineTo(
+          endX - headLength * Math.cos(angle + arrowHeadAngle),
+          endY - headLength * Math.sin(angle + arrowHeadAngle)
+        );
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fillStyle = "black";
+        ctx.fill();
+      }
+
+      function drawEdges() {
+        for (const edge of edges) {
+          const fromNode = nodes[edge[0]];
+          const toNode = nodes[edge[1]];
+          drawArrow(fromNode.x, fromNode.y, toNode.x, toNode.y);
+        }
+      }
+
+      function drawNodes() {
+        for (const node of nodes) {
+          // Draw the node (white circle)
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, 20, 0, 2 * Math.PI);
+          ctx.fillStyle = "#f0f0f0";
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "black";
+          ctx.stroke();
+
+          // Draw the pebble (small black circle) if the node has a pebble
+          if (node.pebble) {
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, 10, 0, 2 * Math.PI);
+            ctx.fillStyle = "#333";
+            ctx.fill();
+          }
+
+          // Draw the node ID (dark gray text)
+          ctx.font = "16px Arial";
+          ctx.fillStyle = node.pebble ? "#ddd" : "#333";
+          ctx.fillText(node.id, node.x - 5, node.y + 6);
+        }
+      }
+
+      function updatePebblesUsed() {
+        const pebblesUsed = nodes.filter((node) => node.pebble).length;
+        document.getElementById(
+          "pebbles-used"
+        ).innerText = `Pebbles Used: ${pebblesUsed}`;
+
+        const maxPebbles = Math.max(
+          pebblesUsed,
+          parseInt(
+            document.getElementById("max-pebbles").textContent.split(" ")[2]
+          )
+        );
+
+        document.getElementById(
+          "max-pebbles"
+        ).innerText = `Max Pebbles: ${maxPebbles}`;
+      }
+
+      function getClickedNodeId(x, y) {
+        for (const node of nodes) {
+          const dx = x - node.x;
+          const dy = y - node.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance <= 20) {
+            return node.id;
+          }
+        }
+        return null;
+      }
+
+      function pebblePlacementIsValid(node) {
+        if (node.pebble) {
+          return false;
+        }
+
+        for (const child of node.children) {
+          if (!child.pebble) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function placePebble(node) {
+        node.pebble = true;
+      }
+
+      function removePebble(node) {
+        node.pebble = false;
+      }
+
+      function showHint(node) {
+        for (const child of node.children) {
+          if (!child.pebble) {
+            const hintDiv = document.createElement("div");
+            const rect = canvas.getBoundingClientRect(); // 获取 canvas 的偏移量
+            hintDiv.style.position = "absolute";
+            hintDiv.style.left = `${child.x + rect.left - 20}px`; // 在 x 坐标上加上偏移量
+            hintDiv.style.top = `${child.y + rect.top - 20}px`; // 在 y 坐标上加上偏移量
+            hintDiv.style.width = "40px";
+            hintDiv.style.height = "40px";
+            hintDiv.style.borderRadius = "50%";
+            hintDiv.className = "blink";
+            document.body.appendChild(hintDiv);
+
+            setTimeout(() => {
+              document.body.removeChild(hintDiv);
+            }, 2000);
+          }
+        }
+      }
+
+      canvas.addEventListener("click", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const nodeId = getClickedNodeId(x, y);
+
+        if (nodeId !== null) {
+          const node = nodes[nodeId];
+
+          if (node.pebble) {
+            removePebble(node);
+          } else if (pebblePlacementIsValid(node)) {
+            placePebble(node);
+          } else {
+            showHint(node);
+          }
+
+          drawNodes();
+          updatePebblesUsed();
+        }
+      });
+
+      function init() {
+        createNodes();
+        createEdges();
+        drawEdges();
+        drawNodes();
+        updatePebblesUsed();
+      }
+
+      init();
+    </script>
+  </body>
+</html>
